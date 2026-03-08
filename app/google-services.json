@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "88571131906",
+    "project_id": "queuenote-184ff",
+    "storage_bucket": "queuenote-184ff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:88571131906:android:693a84a4b3227da1aa8f1b",
+        "android_client_info": {
+          "package_name": "com.adrian.queuenote"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4jw4mjgqXRtr4ld2gR9k4cVf8HhOoM34"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

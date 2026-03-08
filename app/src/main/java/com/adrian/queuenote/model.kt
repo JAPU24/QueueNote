@@ -10,7 +10,7 @@ enum class ProcessStatus {
 
 data class SubTask(
     val id: String = UUID.randomUUID().toString(),
-    val text: String,
+    val text: String = "",
     val done: Boolean = false
 )
 
@@ -22,8 +22,8 @@ data class TaskGroup(
 
 data class ProcessItem(
     val id: String = UUID.randomUUID().toString(),
-    val title: String,
+    val title: String = "",
     val description: String = "",
     val status: ProcessStatus = ProcessStatus.PENDIENTE,
-    val groups: List<TaskGroup> = listOf(TaskGroup()) // por defecto "General"
+    val groups: List<TaskGroup> = listOf(TaskGroup())
 )

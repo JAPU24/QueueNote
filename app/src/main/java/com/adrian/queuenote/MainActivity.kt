@@ -10,11 +10,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import com.adrian.queuenote.ui.theme.AppNav
 import com.adrian.queuenote.ui.theme.QueueNoteTheme
+import com.google.firebase.FirebaseApp
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Inicializar Firebase
+        FirebaseApp.initializeApp(this)
+
         enableEdgeToEdge()
         setContent {
             val context = LocalContext.current

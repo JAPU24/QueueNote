@@ -10,8 +10,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.adrian.queuenote.FirestoreRepository
 import com.adrian.queuenote.ProcessItem
 import com.adrian.queuenote.ProcessStatus
+import kotlinx.coroutines.launch
 
 object Routes {
     const val SPLASH = "splash"
@@ -32,8 +34,14 @@ fun AppNav(
     onToggleDarkMode: (Boolean) -> Unit
 ) {
     val navController = rememberNavController()
-
-    val processes = remember { mutableStateListOf<ProcessItem>() }
+    val scope = rememberCoroutineScope()
+    
+    // Instancia del repositorio de Firestore
+    val repository = remember { FirestoreRepository() }
+    
+    // Observamos los procesos desde Firebase en tiempo real
+    val processes by repository.getProcessesFlow().collectAsState(initial = emptyList())
+    
     var selectedFilter by remember { mutableStateOf<ProcessStatus?>(null) }
 
     fun filteredList(): List<ProcessItem> {
@@ -95,13 +103,16 @@ fun AppNav(
                 onFilterChange = { selectedFilter = it },
                 onAdd = { navController.navigate(Routes.CREATE_EDIT) },
                 onToggleStatus = { id ->
-                    val idx = processes.indexOfFirst { it.id == id }
-                    if (idx != -1) {
-                        processes[idx] = processes[idx].copy(status = nextStatus(processes[idx].status))
+                    processes.find { it.id == id }?.let { item ->
+                        scope.launch {
+                            repository.saveProcess(item.copy(status = nextStatus(item.status)))
+                        }
                     }
                 },
                 onDelete = { id ->
-                    processes.removeAll { it.id == id }
+                    scope.launch {
+                        repository.deleteProcess(id)
+                    }
                 },
                 onEdit = { id ->
                     navController.navigate("${Routes.CREATE_EDIT}?id=$id")
@@ -110,9 +121,10 @@ fun AppNav(
                     navController.navigate("${Routes.DETAIL}/$id")
                 },
                 onReopen = { id ->
-                    val idx = processes.indexOfFirst { it.id == id }
-                    if (idx != -1) {
-                        processes[idx] = processes[idx].copy(status = ProcessStatus.PENDIENTE)
+                    processes.find { it.id == id }?.let { item ->
+                        scope.launch {
+                            repository.saveProcess(item.copy(status = ProcessStatus.PENDIENTE))
+                        }
                     }
                 },
                 onGoProfile = { navController.navigate(Routes.PROFILE) },
@@ -158,13 +170,8 @@ fun AppNav(
             CreateEditProcessScreen(
                 existing = existing,
                 onSave = { newItem ->
-                    if (existing == null) {
-                        processes.add(newItem)
-                    } else {
-                        val idx = processes.indexOfFirst { it.id == existing.id }
-                        if (idx != -1) {
-                            processes[idx] = newItem
-                        }
+                    scope.launch {
+                        repository.saveProcess(newItem)
                     }
                     navController.popBackStack()
                 },
@@ -181,9 +188,8 @@ fun AppNav(
                     process = item,
                     onBack = { navController.popBackStack() },
                     onUpdateProcess = { updated ->
-                        val idx = processes.indexOfFirst { it.id == updated.id }
-                        if (idx != -1) {
-                            processes[idx] = updated
+                        scope.launch {
+                            repository.saveProcess(updated)
                         }
                     }
                 )
