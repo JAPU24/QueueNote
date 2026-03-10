@@ -1,11 +1,16 @@
 package com.adrian.queuenote.ui.theme
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -14,8 +19,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -23,6 +32,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.adrian.queuenote.ProcessItem
 import com.adrian.queuenote.ProcessStatus
 import com.adrian.queuenote.SubTask
@@ -38,6 +50,23 @@ fun getStatusDisplayName(status: ProcessStatus): String {
         ProcessStatus.PENDIENTE -> "Pendiente"
         ProcessStatus.EN_ESPERA -> "En espera"
         ProcessStatus.COMPLETADO -> "Completado"
+    }
+}
+
+@Composable
+fun LoadingOverlay() {
+    Dialog(
+        onDismissRequest = { },
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.medium),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
     }
 }
 
@@ -60,7 +89,8 @@ fun SplashScreen(onContinue: () -> Unit) {
 
 @Composable
 fun LoginScreen(
-    onLogin: () -> Unit,
+    isLoading: Boolean = false,
+    onLogin: (String, String) -> Unit,
     onGoRegister: () -> Unit,
     onForgot: () -> Unit,
     onLoginWithGitHub: () -> Unit
@@ -76,6 +106,8 @@ fun LoginScreen(
     val passwordOk = password.length >= 6
     val canLogin = emailOk && passwordOk
 
+    if (isLoading) LoadingOverlay()
+
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
             Text("Iniciar sesión", style = MaterialTheme.typography.headlineMedium)
@@ -87,6 +119,7 @@ fun LoginScreen(
                 label = { Text("Correo") },
                 modifier = Modifier.fillMaxWidth(),
                 isError = email.isNotBlank() && !emailOk,
+                enabled = !isLoading,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
@@ -107,6 +140,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(passwordFocusRequester),
+                enabled = !isLoading,
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     TextButton(onClick = { showPassword = !showPassword }) {
@@ -123,30 +157,31 @@ fun LoginScreen(
             )
 
             Spacer(Modifier.height(10.dp))
-            TextButton(onClick = onForgot) { Text("¿Olvidaste tu contraseña?") }
+            TextButton(onClick = onForgot, enabled = !isLoading) { Text("¿Olvidaste tu contraseña?") }
 
             Spacer(Modifier.height(20.dp))
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    onLogin()
+                    onLogin(email, password)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = canLogin
+                enabled = canLogin && !isLoading
             ) { Text("Entrar") }
 
             Spacer(Modifier.height(10.dp))
             
             OutlinedButton(
                 onClick = onLoginWithGitHub,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
             ) {
-                Text("Continuar con GitHub (mock)")
+                Text("Continuar con GitHub")
             }
 
             Spacer(Modifier.height(10.dp))
             
-            OutlinedButton(onClick = onGoRegister, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onGoRegister, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
                 Text("Crear cuenta")
             }
         }
@@ -155,8 +190,9 @@ fun LoginScreen(
 
 @Composable
 fun RegisterScreen(
+    isLoading: Boolean = false,
     onBackToLogin: () -> Unit,
-    onRegisterSuccess: () -> Unit
+    onRegisterSuccess: (String, String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -175,6 +211,8 @@ fun RegisterScreen(
     val passFocus = remember { FocusRequester() }
     val pass2Focus = remember { FocusRequester() }
 
+    if (isLoading) LoadingOverlay()
+
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
             Text("Registro", style = MaterialTheme.typography.headlineMedium)
@@ -185,6 +223,7 @@ fun RegisterScreen(
                 onValueChange = { name = it },
                 label = { Text("Nombre") },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(onNext = { emailFocus.requestFocus() })
             )
@@ -196,6 +235,7 @@ fun RegisterScreen(
                 onValueChange = { email = it },
                 label = { Text("Correo") },
                 modifier = Modifier.fillMaxWidth().focusRequester(emailFocus),
+                enabled = !isLoading,
                 isError = email.isNotBlank() && !emailOk,
                 supportingText = {
                     if (email.isNotBlank() && !emailOk) Text("Correo no válido")
@@ -214,6 +254,7 @@ fun RegisterScreen(
                 onValueChange = { pass = it },
                 label = { Text("Contraseña") },
                 modifier = Modifier.fillMaxWidth().focusRequester(passFocus),
+                enabled = !isLoading,
                 visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     TextButton(onClick = { showPass = !showPass }) {
@@ -234,6 +275,7 @@ fun RegisterScreen(
                 onValueChange = { pass2 = it },
                 label = { Text("Confirmar contraseña") },
                 modifier = Modifier.fillMaxWidth().focusRequester(pass2Focus),
+                enabled = !isLoading,
                 isError = pass2.isNotBlank() && !passMatch,
                 supportingText = {
                     if (pass2.isNotBlank() && !passMatch) Text("Las contraseñas no coinciden")
@@ -257,7 +299,7 @@ fun RegisterScreen(
                     Text("Tipo de cuenta", style = MaterialTheme.typography.titleMedium)
                     Text(if (isPrivate) "Privada" else "Pública")
                 }
-                Switch(checked = isPrivate, onCheckedChange = { isPrivate = it })
+                Switch(checked = isPrivate, onCheckedChange = { isPrivate = it }, enabled = !isLoading)
             }
 
             Spacer(Modifier.height(24.dp))
@@ -265,17 +307,17 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    onRegisterSuccess()
+                    onRegisterSuccess(email, pass)
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = canRegister
+                enabled = canRegister && !isLoading
             ) {
                 Text("Crear cuenta")
             }
 
             Spacer(Modifier.height(10.dp))
 
-            OutlinedButton(onClick = onBackToLogin, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onBackToLogin, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
                 Text("Volver a Login")
             }
         }
@@ -284,17 +326,21 @@ fun RegisterScreen(
 
 @Composable
 fun ForgotPasswordScreen(
-    onBack: () -> Unit
+    isLoading: Boolean = false,
+    onBack: () -> Unit,
+    onSendReset: (String) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     val emailOk = email.isNotBlank() && isValidEmail(email)
     val focusManager = LocalFocusManager.current
 
+    if (isLoading) LoadingOverlay()
+
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
             Text("Recuperar contraseña", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(12.dp))
-            Text("Escribe tu correo y te enviaremos un enlace (mock).")
+            Text("Escribe tu correo y te enviaremos un enlace real.")
 
             Spacer(Modifier.height(16.dp))
 
@@ -303,6 +349,7 @@ fun ForgotPasswordScreen(
                 onValueChange = { email = it },
                 label = { Text("Correo") },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
                 isError = email.isNotBlank() && !emailOk,
                 supportingText = {
                     if (email.isNotBlank() && !emailOk) Text("Correo no válido")
@@ -319,9 +366,9 @@ fun ForgotPasswordScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    // Mock: aquí luego se enviará el email real
+                    onSendReset(email)
                 },
-                enabled = emailOk,
+                enabled = emailOk && !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Enviar enlace")
@@ -329,7 +376,7 @@ fun ForgotPasswordScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
                 Text("Volver")
             }
         }
@@ -555,7 +602,7 @@ fun ProcessCard(
                 Spacer(Modifier.height(6.dp))
                 Text("Progreso: $done/$total", style = MaterialTheme.typography.bodySmall)
                 LinearProgressIndicator(
-                    progress = { done.toFloat() / total.toFloat() },
+                    progress = { if (total == 0) 0f else done.toFloat() / total.toFloat() },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                 )
             }
@@ -886,12 +933,24 @@ fun AddSubtaskDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
 
 @Composable
 fun ProfileScreen(
+    isLoading: Boolean = false,
+    email: String,
+    photoUrl: String?,
+    onPhotoSelected: (Uri) -> Unit,
+    onLogout: () -> Unit,
     onChangePassword: () -> Unit,
     onBack: () -> Unit
 ) {
-    val name = "Adrián"
-    val email = "adrian@email.com"
-    val githubUser = "adrian-queuenote"
+    val name = "Usuario de QueueNote"
+    val githubUser = "GitHub no conectado"
+    
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { onPhotoSelected(it) }
+    }
+
+    if (isLoading) LoadingOverlay()
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
@@ -899,26 +958,35 @@ fun ProfileScreen(
             Spacer(Modifier.height(16.dp))
 
             Box(
-                modifier = Modifier.size(110.dp),
+                modifier = Modifier.size(110.dp).align(Alignment.CenterHorizontally),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
-                    shape = MaterialTheme.shapes.extraLarge,
+                    modifier = Modifier.size(110.dp),
+                    shape = CircleShape,
                     tonalElevation = 2.dp
                 ) {
-                    Box(
-                        modifier = Modifier.size(110.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("👤", style = MaterialTheme.typography.headlineLarge)
+                    if (!photoUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = photoUrl,
+                            contentDescription = "Foto de perfil",
+                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("👤", style = MaterialTheme.typography.headlineLarge)
+                        }
                     }
                 }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            OutlinedButton(onClick = { /* mock */ }) {
-                Text("Cambiar foto (mock)")
+                
+                IconButton(
+                    onClick = { photoLauncher.launch("image/*") },
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    enabled = !isLoading
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = "Cambiar foto", tint = MaterialTheme.colorScheme.primary)
+                }
             }
 
             Spacer(Modifier.height(18.dp))
@@ -946,20 +1014,31 @@ fun ProfileScreen(
             OutlinedTextField(
                 value = githubUser,
                 onValueChange = {},
-                label = { Text("GitHub (mock)") },
+                label = { Text("GitHub") },
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = true
             )
 
             Spacer(Modifier.height(20.dp))
 
-            Button(onClick = onChangePassword, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onChangePassword, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
                 Text("Cambiar contraseña")
             }
 
             Spacer(Modifier.height(10.dp))
 
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onLogout,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Cerrar sesión")
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
                 Text("Volver")
             }
         }
@@ -968,20 +1047,22 @@ fun ProfileScreen(
 
 @Composable
 fun ChangePasswordScreen(
-    onBack: () -> Unit
+    isLoading: Boolean = false,
+    onBack: () -> Unit,
+    onUpdatePassword: (String) -> Unit
 ) {
-    var current by remember { mutableStateOf("") }
     var newPass by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var show by remember { mutableStateOf(false) }
 
     val newOk = newPass.length >= 6
     val matchOk = confirm.isNotBlank() && confirm == newPass
-    val canSave = current.isNotBlank() && newOk && matchOk
+    val canSave = newOk && matchOk
 
     val focusManager = LocalFocusManager.current
-    val newFocus = remember { FocusRequester() }
     val confirmFocus = remember { FocusRequester() }
+
+    if (isLoading) LoadingOverlay()
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
@@ -989,32 +1070,11 @@ fun ChangePasswordScreen(
             Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = current,
-                onValueChange = { current = it },
-                label = { Text("Contraseña actual") },
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(onNext = { newFocus.requestFocus() }),
-                trailingIcon = {
-                    TextButton(onClick = { show = !show }) { Text(if (show) "Ocultar" else "Ver") }
-                }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedTextField(
                 value = newPass,
                 onValueChange = { newPass = it },
                 label = { Text("Nueva contraseña") },
-                modifier = Modifier.fillMaxWidth().focusRequester(newFocus),
-                isError = newPass.isNotBlank() && !newOk,
-                supportingText = {
-                    if (newPass.isNotBlank() && !newOk) Text("Mínimo 6 caracteres")
-                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
                 visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -1033,6 +1093,7 @@ fun ChangePasswordScreen(
                 onValueChange = { confirm = it },
                 label = { Text("Confirmar nueva contraseña") },
                 modifier = Modifier.fillMaxWidth().focusRequester(confirmFocus),
+                enabled = !isLoading,
                 isError = confirm.isNotBlank() && !matchOk,
                 supportingText = {
                     if (confirm.isNotBlank() && !matchOk) Text("No coincide")
@@ -1053,14 +1114,15 @@ fun ChangePasswordScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
+                    onUpdatePassword(newPass)
                 },
-                enabled = canSave,
+                enabled = canSave && !isLoading,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Guardar (mock)") }
+            ) { Text("Actualizar contraseña") }
 
             Spacer(Modifier.height(10.dp))
 
-            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
                 Text("Volver")
             }
         }

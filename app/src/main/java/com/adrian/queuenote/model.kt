@@ -22,6 +22,7 @@ data class TaskGroup(
 
 data class ProcessItem(
     val id: String = UUID.randomUUID().toString(),
+    val userId: String = "", // Asociar el proceso a un usuario
     val title: String = "",
     val description: String = "",
     val status: ProcessStatus = ProcessStatus.PENDIENTE,

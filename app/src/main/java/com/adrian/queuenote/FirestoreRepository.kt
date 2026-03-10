@@ -3,7 +3,6 @@ package com.adrian.queuenote
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 
@@ -20,9 +19,11 @@ class FirestoreRepository {
         }
     }
 
-    // Obtener todos los procesos en tiempo real
-    fun getProcessesFlow(): Flow<List<ProcessItem>> = callbackFlow {
-        val subscription = collection.addSnapshotListener { snapshot, error ->
+    // Obtener procesos filtrados por el usuario actual en tiempo real
+    fun getProcessesFlow(userId: String): Flow<List<ProcessItem>> = callbackFlow {
+        val subscription = collection
+            .whereEqualTo("userId", userId) // Filtro por usuario
+            .addSnapshotListener { snapshot, error ->
             if (error != null) {
                 close(error)
                 return@addSnapshotListener
