@@ -22,9 +22,10 @@ data class TaskGroup(
 
 data class ProcessItem(
     val id: String = UUID.randomUUID().toString(),
-    val userId: String = "", // Asociar el proceso a un usuario
+    val userId: String = "",
     val title: String = "",
     val description: String = "",
     val status: ProcessStatus = ProcessStatus.PENDIENTE,
-    val groups: List<TaskGroup> = listOf(TaskGroup())
+    val groups: List<TaskGroup> = listOf(TaskGroup()),
+    val dueDate: Long? = null // Fecha límite en milisegundos
 )

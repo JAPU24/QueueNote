@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -40,6 +41,9 @@ import com.adrian.queuenote.ProcessStatus
 import com.adrian.queuenote.SubTask
 import com.adrian.queuenote.TaskGroup
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 fun isValidEmail(email: String): Boolean {
     return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
@@ -51,6 +55,12 @@ fun getStatusDisplayName(status: ProcessStatus): String {
         ProcessStatus.EN_ESPERA -> "En espera"
         ProcessStatus.COMPLETADO -> "Completado"
     }
+}
+
+fun formatLongDate(timestamp: Long?): String {
+    if (timestamp == null) return "Sin fecha límite"
+    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    return sdf.format(Date(timestamp))
 }
 
 @Composable
@@ -594,6 +604,21 @@ fun ProcessCard(
                 Spacer(Modifier.height(6.dp))
                 Text(item.description, style = MaterialTheme.typography.bodyMedium)
             }
+
+            // Mostrar la fecha límite si existe
+            if (item.dueDate != null) {
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "Vence: ${formatLongDate(item.dueDate)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
             
             val allSubtasks = item.groups.flatMap { it.subtasks }
             if (allSubtasks.isNotEmpty()) {
@@ -711,6 +736,15 @@ fun TaskDetailScreen(
             ) {
                 AssistChip(onClick = {}, label = { Text("Estado: ${getStatusDisplayName(current.status)}") })
                 Text(if (total == 0) "0/0" else "$done/$total")
+            }
+
+            if (current.dueDate != null) {
+                Text(
+                    text = "Fecha límite: ${formatLongDate(current.dueDate)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
@@ -1185,16 +1219,28 @@ fun CreateEditProcessScreen(
     var title by remember { mutableStateOf(existing?.title ?: "") }
     var description by remember { mutableStateOf(existing?.description ?: "") }
     var status by remember { mutableStateOf(existing?.status ?: ProcessStatus.PENDIENTE) }
+    var dueDate by remember { mutableStateOf(existing?.dueDate) }
 
     val canSave = title.trim().isNotBlank()
 
     val focusManager = LocalFocusManager.current
     val descFocusRequester = remember { FocusRequester() }
 
+    // Estado para el DatePicker
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = dueDate ?: System.currentTimeMillis()
+    )
+    var showDatePicker by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (existing == null) "Crear proceso" else "Editar proceso") }
+                title = { Text(if (existing == null) "Crear proceso" else "Editar proceso") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                }
             )
         }
     ) { padding ->
@@ -1230,6 +1276,34 @@ fun CreateEditProcessScreen(
             )
 
             Spacer(Modifier.height(16.dp))
+            
+            // Selector de fecha límite
+            Text("Fecha límite", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            
+            OutlinedCard(
+                onClick = { showDatePicker = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DateRange, contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text(formatLongDate(dueDate))
+                    }
+                    if (dueDate != null) {
+                        IconButton(onClick = { dueDate = null }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Quitar fecha")
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
             Text("Estado", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
 
@@ -1263,7 +1337,8 @@ fun CreateEditProcessScreen(
                         title = title.trim(),
                         description = description.trim(),
                         status = status,
-                        groups = existing?.groups ?: listOf(TaskGroup())
+                        groups = existing?.groups ?: listOf(TaskGroup()),
+                        dueDate = dueDate
                     )
                     onSave(item)
                 },
@@ -1281,6 +1356,23 @@ fun CreateEditProcessScreen(
             ) {
                 Text("Cancelar")
             }
+        }
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dueDate = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                }) { Text("Seleccionar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }
