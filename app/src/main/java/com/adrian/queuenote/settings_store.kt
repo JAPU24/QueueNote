@@ -1,8 +1,8 @@
 package com.adrian.queuenote
 
 import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -11,16 +11,30 @@ private val Context.dataStore by preferencesDataStore(name = "settings")
 
 class SettingsStore(private val context: Context) {
 
-    private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
+    private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
+    private val LANGUAGE_KEY = stringPreferencesKey("language")
 
-    val darkModeFlow: Flow<Boolean> =
+    // Modos: "light", "dark", "auto"
+    val themeModeFlow: Flow<String> =
         context.dataStore.data.map { prefs ->
-            prefs[DARK_MODE_KEY] ?: false
+            prefs[THEME_MODE_KEY] ?: "auto"
         }
 
-    suspend fun setDarkMode(enabled: Boolean) {
+    // Idiomas: "es", "en", "auto"
+    val languageFlow: Flow<String> =
+        context.dataStore.data.map { prefs ->
+            prefs[LANGUAGE_KEY] ?: "auto"
+        }
+
+    suspend fun setThemeMode(mode: String) {
         context.dataStore.edit { prefs ->
-            prefs[DARK_MODE_KEY] = enabled
+            prefs[THEME_MODE_KEY] = mode
+        }
+    }
+
+    suspend fun setLanguage(lang: String) {
+        context.dataStore.edit { prefs ->
+            prefs[LANGUAGE_KEY] = lang
         }
     }
 }

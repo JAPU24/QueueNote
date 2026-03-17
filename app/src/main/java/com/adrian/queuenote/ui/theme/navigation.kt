@@ -35,8 +35,10 @@ object Routes {
 
 @Composable
 fun AppNav(
-    isDarkMode: Boolean,
-    onToggleDarkMode: (Boolean) -> Unit
+    themeMode: String,
+    onSetThemeMode: (String) -> Unit,
+    language: String,
+    onSetLanguage: (String) -> Unit
 ) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
@@ -202,15 +204,24 @@ fun AppNav(
         composable(Routes.PROFILE) {
             ProfileScreen(
                 isLoading = isLoading,
+                initialName = currentUser?.displayName ?: "Usuario",
                 email = currentUser?.email ?: "Sin correo",
                 photoUrl = currentUser?.photoUrl?.toString(),
+                onUpdateProfile = { newName ->
+                    scope.launch {
+                        isLoading = true
+                        authRepository.updateProfile(displayName = newName)
+                        isLoading = false
+                        Toast.makeText(context, "Nombre actualizado", Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onPhotoSelected = { uri ->
                     scope.launch {
                         isLoading = true
                         val uploadResult = storageRepository.uploadProfilePicture(currentUser!!.uid, uri)
                         if (uploadResult.isSuccess) {
                             val url = uploadResult.getOrNull()!!
-                            authRepository.updateProfilePicture(url)
+                            authRepository.updateProfile(photoUrl = url)
                             Toast.makeText(context, "Foto actualizada", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(context, "Error al subir foto", Toast.LENGTH_SHORT).show()
@@ -251,8 +262,10 @@ fun AppNav(
 
         composable(Routes.SETTINGS) {
             SettingsScreen(
-                isDarkMode = isDarkMode,
-                onToggleDarkMode = onToggleDarkMode,
+                themeMode = themeMode,
+                onSetThemeMode = onSetThemeMode,
+                language = language,
+                onSetLanguage = onSetLanguage,
                 onBack = { navController.popBackStack() }
             )
         }

@@ -502,17 +502,17 @@ fun FilterSection(
             label = { Text("Todos") }
         )
         FilterChip(
-            selected = selectedFilter == ProcessStatus.PENDIENTE,
+            selected = ProcessStatus.PENDIENTE == selectedFilter,
             onClick = { onFilterChange(ProcessStatus.PENDIENTE) },
             label = { Text("Pendiente") }
         )
         FilterChip(
-            selected = selectedFilter == ProcessStatus.EN_ESPERA,
+            selected = ProcessStatus.EN_ESPERA == selectedFilter,
             onClick = { onFilterChange(ProcessStatus.EN_ESPERA) },
             label = { Text("En espera") }
         )
         FilterChip(
-            selected = selectedFilter == ProcessStatus.COMPLETADO,
+            selected = ProcessStatus.COMPLETADO == selectedFilter,
             onClick = { onFilterChange(ProcessStatus.COMPLETADO) },
             label = { Text("Completado") }
         )
@@ -599,13 +599,12 @@ fun ProcessCard(
                 Text(item.title, style = MaterialTheme.typography.titleMedium)
                 StatusBadge(item.status)
             }
-            
+
             if (item.description.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(item.description, style = MaterialTheme.typography.bodyMedium)
             }
 
-            // Mostrar la fecha límite si existe
             if (item.dueDate != null) {
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -619,7 +618,7 @@ fun ProcessCard(
                     )
                 }
             }
-            
+
             val allSubtasks = item.groups.flatMap { it.subtasks }
             if (allSubtasks.isNotEmpty()) {
                 val done = allSubtasks.count { it.done }
@@ -633,7 +632,7 @@ fun ProcessCard(
             }
 
             Spacer(Modifier.height(10.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -651,7 +650,7 @@ fun ProcessCard(
                         Text("Reabrir")
                     }
                 }
-                
+
                 IconButton(onClick = { showDeleteConfirm = true }) {
                     Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                 }
@@ -687,7 +686,6 @@ fun TaskDetailScreen(
     var current by remember { mutableStateOf(process) }
     val locked = current.status == ProcessStatus.COMPLETADO
 
-    // helpers progreso
     val allSubtasks = current.groups.flatMap { it.subtasks }
     val total = allSubtasks.size
     val done = allSubtasks.count { it.done }
@@ -779,7 +777,7 @@ fun TaskDetailScreen(
                     group = group,
                     locked = locked,
                     onAddSubtask = { showAddSubtaskForGroupId = group.id },
-                    onToggleStatus = { /* No longer used here, keeping for structure if needed */ },
+                    onToggleStatus = { },
                     onToggleSubtask = { subId ->
                         val newGroups = current.groups.map { g ->
                             if (g.id != group.id) g
@@ -968,16 +966,18 @@ fun AddSubtaskDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
 @Composable
 fun ProfileScreen(
     isLoading: Boolean = false,
+    initialName: String,
     email: String,
     photoUrl: String?,
+    onUpdateProfile: (String) -> Unit,
     onPhotoSelected: (Uri) -> Unit,
     onLogout: () -> Unit,
     onChangePassword: () -> Unit,
     onBack: () -> Unit
 ) {
-    val name = "Usuario de QueueNote"
+    var name by remember { mutableStateOf(initialName) }
     val githubUser = "GitHub no conectado"
-    
+
     val photoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -1013,7 +1013,7 @@ fun ProfileScreen(
                         }
                     }
                 }
-                
+
                 IconButton(
                     onClick = { photoLauncher.launch("image/*") },
                     modifier = Modifier.align(Alignment.BottomEnd),
@@ -1027,10 +1027,17 @@ fun ProfileScreen(
 
             OutlinedTextField(
                 value = name,
-                onValueChange = {},
+                onValueChange = { name = it },
                 label = { Text("Nombre") },
                 modifier = Modifier.fillMaxWidth(),
-                readOnly = true
+                enabled = !isLoading,
+                trailingIcon = {
+                    if (name != initialName && name.isNotBlank()) {
+                        IconButton(onClick = { onUpdateProfile(name) }) {
+                            Icon(Icons.Default.Check, contentDescription = "Guardar nombre", tint = Color(0xFF4CAF50))
+                        }
+                    }
+                }
             )
 
             Spacer(Modifier.height(10.dp))
@@ -1165,47 +1172,73 @@ fun ChangePasswordScreen(
 
 @Composable
 fun SettingsScreen(
-    isDarkMode: Boolean,
-    onToggleDarkMode: (Boolean) -> Unit,
+    themeMode: String,
+    onSetThemeMode: (String) -> Unit,
+    language: String,
+    onSetLanguage: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    var biometricEnabled by remember { mutableStateOf(false) }
-
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
             Text("Ajustes", style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Modo oscuro")
-                Switch(
-                    checked = isDarkMode,
-                    onCheckedChange = { onToggleDarkMode(it) }
-                )
+            Text("Apariencia", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(12.dp))
+
+            // Selector de Tema
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ThemeOption("Automático (Sistema)", "auto", themeMode, onSetThemeMode)
+                ThemeOption("Modo Claro", "light", themeMode, onSetThemeMode)
+                ThemeOption("Modo Oscuro", "dark", themeMode, onSetThemeMode)
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(32.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("Biometría")
-                    Text("Usar huella/rostro (mock)", style = MaterialTheme.typography.bodySmall)
-                }
-                Switch(checked = biometricEnabled, onCheckedChange = { biometricEnabled = it })
+            Text("Idioma", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(12.dp))
+
+            // Selector de Idioma
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LanguageOption("Automático (Sistema)", "auto", language, onSetLanguage)
+                LanguageOption("Español", "es", language, onSetLanguage)
+                LanguageOption("Inglés", "en", language, onSetLanguage)
             }
 
-            Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(48.dp))
 
-            Button(onClick = onBack) { Text("Volver") }
+            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Volver") }
         }
+    }
+}
+
+@Composable
+fun ThemeOption(text: String, mode: String, currentMode: String, onSelect: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect(mode) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = (mode == currentMode), onClick = { onSelect(mode) })
+        Spacer(Modifier.width(8.dp))
+        Text(text)
+    }
+}
+
+@Composable
+fun LanguageOption(text: String, lang: String, currentLang: String, onSelect: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect(lang) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = (lang == currentLang), onClick = { onSelect(lang) })
+        Spacer(Modifier.width(8.dp))
+        Text(text)
     }
 }
 
@@ -1226,7 +1259,6 @@ fun CreateEditProcessScreen(
     val focusManager = LocalFocusManager.current
     val descFocusRequester = remember { FocusRequester() }
 
-    // Estado para el DatePicker
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = dueDate ?: System.currentTimeMillis()
     )
@@ -1276,11 +1308,10 @@ fun CreateEditProcessScreen(
             )
 
             Spacer(Modifier.height(16.dp))
-            
-            // Selector de fecha límite
+
             Text("Fecha límite", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
-            
+
             OutlinedCard(
                 onClick = { showDatePicker = true },
                 modifier = Modifier.fillMaxWidth()

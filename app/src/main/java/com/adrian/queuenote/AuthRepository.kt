@@ -36,11 +36,13 @@ class AuthRepository {
         auth.signOut()
     }
 
-    suspend fun updateProfilePicture(photoUrl: String): Result<Unit> {
+    // Actualizar nombre y/o foto
+    suspend fun updateProfile(displayName: String? = null, photoUrl: String? = null): Result<Unit> {
         return try {
             val user = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
             val profileUpdates = userProfileChangeRequest {
-                photoUri = Uri.parse(photoUrl)
+                if (displayName != null) this.displayName = displayName
+                if (photoUrl != null) this.photoUri = Uri.parse(photoUrl)
             }
             user.updateProfile(profileUpdates).await()
             user.reload().await()
@@ -59,13 +61,9 @@ class AuthRepository {
         }
     }
 
-    // Lógica para Login con GitHub
     suspend fun loginWithGitHub(activity: Activity): Result<FirebaseUser?> {
         return try {
             val provider = OAuthProvider.newBuilder("github.com")
-            // Opcional: pedir permisos adicionales si quisieras
-            // provider.scopes = listOf("user:email")
-            
             val result = auth.startActivityForSignInWithProvider(activity, provider.build()).await()
             Result.success(result.user)
         } catch (e: Exception) {
