@@ -31,6 +31,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val CHANGE_PASSWORD = "change_password"
     const val DETAIL = "detail"
+    const val INVENTORY = "inventory"
 }
 
 @Composable
@@ -193,12 +194,29 @@ fun AppNav(
                     },
                     onGoProfile = { navController.navigate(Routes.PROFILE) },
                     onGoSettings = { navController.navigate(Routes.SETTINGS) },
+                    onGoInventory = { navController.navigate(Routes.INVENTORY) },
                     onLogout = { 
                         authRepository.logout()
                         navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                     }
                 )
             }
+        }
+
+        composable(Routes.INVENTORY) {
+            InventoryScreen(
+                onGoHome = { 
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                },
+                onGoProfile = { navController.navigate(Routes.PROFILE) },
+                onGoSettings = { navController.navigate(Routes.SETTINGS) },
+                onLogout = {
+                    authRepository.logout()
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                }
+            )
         }
 
         composable(Routes.PROFILE) {
@@ -234,14 +252,22 @@ fun AppNav(
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 },
                 onChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) },
-                onBack = { navController.popBackStack() }
+                onBack = { 
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                }
             )
         }
 
         composable(Routes.CHANGE_PASSWORD) {
             ChangePasswordScreen(
                 isLoading = isLoading,
-                onBack = { navController.popBackStack() },
+                onBack = { 
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                },
                 onUpdatePassword = { newPass ->
                     scope.launch {
                         isLoading = true
@@ -250,7 +276,9 @@ fun AppNav(
                             isLoading = false
                             if (task.isSuccessful) {
                                 Toast.makeText(context, "Contraseña actualizada", Toast.LENGTH_SHORT).show()
-                                navController.popBackStack()
+                                navController.navigate(Routes.HOME) {
+                                    popUpTo(Routes.HOME) { inclusive = true }
+                                }
                             } else {
                                 Toast.makeText(context, "Error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                             }
@@ -266,7 +294,11 @@ fun AppNav(
                 onSetThemeMode = onSetThemeMode,
                 language = language,
                 onSetLanguage = onSetLanguage,
-                onBack = { navController.popBackStack() }
+                onBack = { 
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                }
             )
         }
 

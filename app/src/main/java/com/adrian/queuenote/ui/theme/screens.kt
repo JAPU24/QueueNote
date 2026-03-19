@@ -407,6 +407,7 @@ fun HomeScreenWithDrawer(
     onReopen: (String) -> Unit,
     onGoProfile: () -> Unit,
     onGoSettings: () -> Unit,
+    onGoInventory: () -> Unit,
     onLogout: () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -422,6 +423,14 @@ fun HomeScreenWithDrawer(
                     label = { Text("Menú principal") },
                     selected = true,
                     onClick = { scope.launch { drawerState.close() } }
+                )
+                NavigationDrawerItem(
+                    label = { Text("Inventario") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        onGoInventory()
+                    }
                 )
                 NavigationDrawerItem(
                     label = { Text("Mi perfil") },
