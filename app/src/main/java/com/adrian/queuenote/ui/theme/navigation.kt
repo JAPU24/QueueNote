@@ -18,6 +18,7 @@ import com.adrian.queuenote.FirestoreRepository
 import com.adrian.queuenote.StorageRepository
 import com.adrian.queuenote.ProcessItem
 import com.adrian.queuenote.ProcessStatus
+import com.adrian.queuenote.AppStrings
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -39,34 +40,29 @@ fun AppNav(
     themeMode: String,
     onSetThemeMode: (String) -> Unit,
     language: String,
-    onSetLanguage: (String) -> Unit
+    onSetLanguage: (String) -> Unit,
+    appStrings: AppStrings
 ) {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     
-    // Repositorios
     val authRepository = remember { AuthRepository() }
     val firestoreRepository = remember { FirestoreRepository() }
     val storageRepository = remember { StorageRepository() }
     
-    // Estados de la app
     var isLoading by remember { mutableStateOf(false) }
     var currentUser by remember { mutableStateOf(authRepository.currentUser) }
     
-    // Escuchar cambios de autenticación
     DisposableEffect(authRepository) {
         val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
         val listener = com.google.firebase.auth.FirebaseAuth.AuthStateListener { firebaseAuth ->
             currentUser = firebaseAuth.currentUser
         }
         auth.addAuthStateListener(listener)
-        onDispose {
-            auth.removeAuthStateListener(listener)
-        }
+        onDispose { auth.removeAuthStateListener(listener) }
     }
     
-    // Observamos los procesos
     val processes by remember(currentUser) {
         if (currentUser != null) {
             firestoreRepository.getProcessesFlow(currentUser!!.uid)
@@ -82,23 +78,22 @@ fun AppNav(
         startDestination = if (authRepository.currentUser != null) Routes.HOME else Routes.SPLASH
     ) {
         composable(Routes.SPLASH) {
-            SplashScreen(onContinue = { navController.navigate(Routes.LOGIN) })
+            SplashScreen(appStrings = appStrings, onContinue = { navController.navigate(Routes.LOGIN) })
         }
 
         composable(Routes.LOGIN) {
             LoginScreen(
+                appStrings = appStrings,
                 isLoading = isLoading,
-                onLogin = { emailInput, passInput ->
+                onLogin = { e, p ->
                     scope.launch {
                         isLoading = true
-                        val result = authRepository.login(emailInput, passInput)
+                        val res = authRepository.login(e, p)
                         isLoading = false
-                        if (result.isSuccess) {
-                            navController.navigate(Routes.HOME) {
-                                popUpTo(0) { inclusive = true }
-                            }
+                        if (res.isSuccess) {
+                            navController.navigate(Routes.HOME) { popUpTo(0) { inclusive = true } }
                         } else {
-                            Toast.makeText(context, "Error: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
@@ -109,14 +104,10 @@ fun AppNav(
                         val activity = context as? Activity
                         if (activity != null) {
                             isLoading = true
-                            val result = authRepository.loginWithGitHub(activity)
+                            val res = authRepository.loginWithGitHub(activity)
                             isLoading = false
-                            if (result.isSuccess) {
-                                navController.navigate(Routes.HOME) {
-                                    popUpTo(0) { inclusive = true }
-                                }
-                            } else {
-                                Toast.makeText(context, "Error GitHub: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                            if (res.isSuccess) {
+                                navController.navigate(Routes.HOME) { popUpTo(0) { inclusive = true } }
                             }
                         }
                     }
@@ -126,19 +117,16 @@ fun AppNav(
 
         composable(Routes.REGISTER) {
             RegisterScreen(
+                appStrings = appStrings,
                 isLoading = isLoading,
                 onBackToLogin = { navController.popBackStack() },
-                onRegisterSuccess = { email, pass ->
+                onRegisterSuccess = { e, p ->
                     scope.launch {
                         isLoading = true
-                        val result = authRepository.register(email, pass)
+                        val res = authRepository.register(e, p)
                         isLoading = false
-                        if (result.isSuccess) {
-                            navController.navigate(Routes.HOME) {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        } else {
-                            Toast.makeText(context, "Error: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                        if (res.isSuccess) {
+                            navController.navigate(Routes.HOME) { popUpTo(0) { inclusive = true } }
                         }
                     }
                 }
@@ -147,18 +135,17 @@ fun AppNav(
 
         composable(Routes.FORGOT) {
             ForgotPasswordScreen(
+                appStrings = appStrings,
                 isLoading = isLoading,
                 onBack = { navController.popBackStack() },
-                onSendReset = { email ->
+                onSendReset = { e ->
                     scope.launch {
                         isLoading = true
-                        val result = authRepository.sendPasswordResetEmail(email)
+                        val res = authRepository.sendPasswordResetEmail(e)
                         isLoading = false
-                        if (result.isSuccess) {
-                            Toast.makeText(context, "Correo enviado. Revisa tu bandeja de entrada.", Toast.LENGTH_LONG).show()
+                        if (res.isSuccess) {
+                            Toast.makeText(context, "Correo enviado.", Toast.LENGTH_LONG).show()
                             navController.popBackStack()
-                        } else {
-                            Toast.makeText(context, "Error: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -176,12 +163,12 @@ fun AppNav(
                     onAdd = { navController.navigate(Routes.CREATE_EDIT) },
                     onToggleStatus = { id ->
                         processes.find { it.id == id }?.let { item ->
-                            val nextStatus = when (item.status) {
+                            val next = when (item.status) {
                                 ProcessStatus.PENDIENTE -> ProcessStatus.EN_ESPERA
                                 ProcessStatus.EN_ESPERA -> ProcessStatus.COMPLETADO
                                 ProcessStatus.COMPLETADO -> ProcessStatus.PENDIENTE
                             }
-                            scope.launch { firestoreRepository.saveProcess(item.copy(status = nextStatus)) }
+                            scope.launch { firestoreRepository.saveProcess(item.copy(status = next)) }
                         }
                     },
                     onDelete = { id -> scope.launch { firestoreRepository.deleteProcess(id) } },
@@ -198,24 +185,22 @@ fun AppNav(
                     onLogout = { 
                         authRepository.logout()
                         navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-                    }
+                    },
+                    appStrings = appStrings
                 )
             }
         }
 
         composable(Routes.INVENTORY) {
             InventoryScreen(
-                onGoHome = { 
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.HOME) { inclusive = true }
-                    }
-                },
+                onGoHome = { navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } },
                 onGoProfile = { navController.navigate(Routes.PROFILE) },
                 onGoSettings = { navController.navigate(Routes.SETTINGS) },
                 onLogout = {
                     authRepository.logout()
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-                }
+                },
+                appStrings = appStrings
             )
         }
 
@@ -225,24 +210,19 @@ fun AppNav(
                 initialName = currentUser?.displayName ?: "Usuario",
                 email = currentUser?.email ?: "Sin correo",
                 photoUrl = currentUser?.photoUrl?.toString(),
-                onUpdateProfile = { newName ->
+                onUpdateProfile = { n ->
                     scope.launch {
                         isLoading = true
-                        authRepository.updateProfile(displayName = newName)
+                        authRepository.updateProfile(displayName = n)
                         isLoading = false
-                        Toast.makeText(context, "Nombre actualizado", Toast.LENGTH_SHORT).show()
                     }
                 },
                 onPhotoSelected = { uri ->
                     scope.launch {
                         isLoading = true
-                        val uploadResult = storageRepository.uploadProfilePicture(currentUser!!.uid, uri)
-                        if (uploadResult.isSuccess) {
-                            val url = uploadResult.getOrNull()!!
-                            authRepository.updateProfile(photoUrl = url)
-                            Toast.makeText(context, "Foto actualizada", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Error al subir foto", Toast.LENGTH_SHORT).show()
+                        val res = storageRepository.uploadProfilePicture(currentUser!!.uid, uri)
+                        if (res.isSuccess) {
+                            authRepository.updateProfile(photoUrl = res.getOrNull()!!)
                         }
                         isLoading = false
                     }
@@ -252,39 +232,29 @@ fun AppNav(
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 },
                 onChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) },
-                onBack = { 
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.HOME) { inclusive = true }
-                    }
-                }
+                onBack = { navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } },
+                appStrings = appStrings
             )
         }
 
         composable(Routes.CHANGE_PASSWORD) {
             ChangePasswordScreen(
                 isLoading = isLoading,
-                onBack = { 
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.HOME) { inclusive = true }
-                    }
-                },
-                onUpdatePassword = { newPass ->
+                onBack = { navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } },
+                onUpdatePassword = { current, new ->
                     scope.launch {
                         isLoading = true
-                        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-                        user?.updatePassword(newPass)?.addOnCompleteListener { task ->
-                            isLoading = false
-                            if (task.isSuccessful) {
-                                Toast.makeText(context, "Contraseña actualizada", Toast.LENGTH_SHORT).show()
-                                navController.navigate(Routes.HOME) {
-                                    popUpTo(Routes.HOME) { inclusive = true }
-                                }
-                            } else {
-                                Toast.makeText(context, "Error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                            }
+                        val res = authRepository.changePassword(current, new)
+                        isLoading = false
+                        if (res.isSuccess) {
+                            Toast.makeText(context, "Contraseña actualizada", Toast.LENGTH_SHORT).show()
+                            navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+                        } else {
+                            Toast.makeText(context, "Error: ${res.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }
+                },
+                appStrings = appStrings
             )
         }
 
@@ -294,52 +264,39 @@ fun AppNav(
                 onSetThemeMode = onSetThemeMode,
                 language = language,
                 onSetLanguage = onSetLanguage,
-                onBack = { 
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.HOME) { inclusive = true }
-                    }
-                }
+                onBack = { navController.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } } },
+                appStrings = appStrings
             )
         }
 
         composable(
             route = "${Routes.CREATE_EDIT}?id={id}",
-            arguments = listOf(navArgument("id") { 
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null 
-            })
+            arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null })
         ) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")
             val existing = processes.find { it.id == id }
-
             CreateEditProcessScreen(
                 existing = existing,
                 onSave = { newItem ->
                     if (currentUser != null) {
-                        scope.launch {
-                            firestoreRepository.saveProcess(newItem.copy(userId = currentUser!!.uid))
-                        }
+                        scope.launch { firestoreRepository.saveProcess(newItem.copy(userId = currentUser!!.uid)) }
                         navController.popBackStack()
                     }
                 },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                appStrings = appStrings
             )
         }
 
         composable("${Routes.DETAIL}/{id}") { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")
             val item = processes.find { it.id == id }
-
             if (item != null) {
                 TaskDetailScreen(
                     process = item,
                     onBack = { navController.popBackStack() },
-                    onUpdateProcess = { updated ->
-                        scope.launch {
-                            firestoreRepository.saveProcess(updated)
-                        }
-                    }
+                    onUpdateProcess = { updated -> scope.launch { firestoreRepository.saveProcess(updated) } },
+                    appStrings = appStrings
                 )
             } else {
                 SimpleNotFoundScreen(onBack = { navController.popBackStack() })

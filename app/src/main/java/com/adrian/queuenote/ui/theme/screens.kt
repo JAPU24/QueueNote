@@ -40,6 +40,7 @@ import com.adrian.queuenote.ProcessItem
 import com.adrian.queuenote.ProcessStatus
 import com.adrian.queuenote.SubTask
 import com.adrian.queuenote.TaskGroup
+import com.adrian.queuenote.AppStrings
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,22 +50,22 @@ fun isValidEmail(email: String): Boolean {
     return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
 }
 
-fun getStatusDisplayName(status: ProcessStatus): String {
+fun getStatusDisplayName(status: ProcessStatus, appStrings: AppStrings): String {
     return when (status) {
-        ProcessStatus.PENDIENTE -> "Pendiente"
-        ProcessStatus.EN_ESPERA -> "En espera"
-        ProcessStatus.COMPLETADO -> "Completado"
+        ProcessStatus.PENDIENTE -> appStrings.filter_pending
+        ProcessStatus.EN_ESPERA -> appStrings.filter_waiting
+        ProcessStatus.COMPLETADO -> appStrings.filter_completed
     }
 }
 
-fun formatLongDate(timestamp: Long?): String {
-    if (timestamp == null) return "Sin fecha límite"
+fun formatLongDate(timestamp: Long?, appStrings: AppStrings): String {
+    if (timestamp == null) return appStrings.no_due_date
     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 
 @Composable
-fun LoadingOverlay() {
+fun LoadingOverlay(appStrings: AppStrings) {
     Dialog(
         onDismissRequest = { },
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
@@ -75,30 +76,35 @@ fun LoadingOverlay() {
                 .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.medium),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator()
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator()
+                Spacer(Modifier.height(8.dp))
+                Text(appStrings.loading, style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }
 
 @Composable
-fun SplashScreen(onContinue: () -> Unit) {
+fun SplashScreen(appStrings: AppStrings, onContinue: () -> Unit) {
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier.fillMaxSize().padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("QueueNote", style = MaterialTheme.typography.headlineLarge)
+            Text(appStrings.app_name, style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(10.dp))
-            Text("Registro personal de esperas y procesos")
+            Text(appStrings.splash_subtitle)
             Spacer(Modifier.height(24.dp))
-            Button(onClick = onContinue) { Text("Continuar") }
+            Button(onClick = onContinue) { Text(appStrings.continue_btn) }
         }
     }
 }
 
 @Composable
 fun LoginScreen(
+    appStrings: AppStrings,
     isLoading: Boolean = false,
     onLogin: (String, String) -> Unit,
     onGoRegister: () -> Unit,
@@ -116,17 +122,17 @@ fun LoginScreen(
     val passwordOk = password.length >= 6
     val canLogin = emailOk && passwordOk
 
-    if (isLoading) LoadingOverlay()
+    if (isLoading) LoadingOverlay(appStrings)
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
-            Text("Iniciar sesión", style = MaterialTheme.typography.headlineMedium)
+            Text(appStrings.login_title, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Correo") },
+                label = { Text(appStrings.email_label) },
                 modifier = Modifier.fillMaxWidth(),
                 isError = email.isNotBlank() && !emailOk,
                 enabled = !isLoading,
@@ -138,7 +144,7 @@ fun LoginScreen(
                     onNext = { passwordFocusRequester.requestFocus() }
                 ),
                 supportingText = {
-                    if (email.isNotBlank() && !emailOk) Text("Correo no válido")
+                    if (email.isNotBlank() && !emailOk) Text(appStrings.invalid_email)
                 }
             )
             Spacer(Modifier.height(12.dp))
@@ -146,7 +152,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Contraseña") },
+                label = { Text(appStrings.password_label) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(passwordFocusRequester),
@@ -154,7 +160,7 @@ fun LoginScreen(
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     TextButton(onClick = { showPassword = !showPassword }) {
-                        Text(if (showPassword) "Ocultar" else "Ver")
+                        Text(if (showPassword) appStrings.hide_pass else appStrings.show_pass)
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -167,7 +173,7 @@ fun LoginScreen(
             )
 
             Spacer(Modifier.height(10.dp))
-            TextButton(onClick = onForgot, enabled = !isLoading) { Text("¿Olvidaste tu contraseña?") }
+            TextButton(onClick = onForgot, enabled = !isLoading) { Text(appStrings.forgot_pass_link) }
 
             Spacer(Modifier.height(20.dp))
             Button(
@@ -177,7 +183,7 @@ fun LoginScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = canLogin && !isLoading
-            ) { Text("Entrar") }
+            ) { Text(appStrings.login_btn) }
 
             Spacer(Modifier.height(10.dp))
             
@@ -186,13 +192,13 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
             ) {
-                Text("Continuar con GitHub")
+                Text(appStrings.login_github)
             }
 
             Spacer(Modifier.height(10.dp))
             
             OutlinedButton(onClick = onGoRegister, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
-                Text("Crear cuenta")
+                Text(appStrings.create_account_btn)
             }
         }
     }
@@ -200,6 +206,7 @@ fun LoginScreen(
 
 @Composable
 fun RegisterScreen(
+    appStrings: AppStrings,
     isLoading: Boolean = false,
     onBackToLogin: () -> Unit,
     onRegisterSuccess: (String, String) -> Unit
@@ -221,17 +228,17 @@ fun RegisterScreen(
     val passFocus = remember { FocusRequester() }
     val pass2Focus = remember { FocusRequester() }
 
-    if (isLoading) LoadingOverlay()
+    if (isLoading) LoadingOverlay(appStrings)
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
-            Text("Registro", style = MaterialTheme.typography.headlineMedium)
+            Text(appStrings.register_title, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nombre") },
+                label = { Text(appStrings.name_label) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -243,12 +250,12 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Correo") },
+                label = { Text(appStrings.email_label) },
                 modifier = Modifier.fillMaxWidth().focusRequester(emailFocus),
                 enabled = !isLoading,
                 isError = email.isNotBlank() && !emailOk,
                 supportingText = {
-                    if (email.isNotBlank() && !emailOk) Text("Correo no válido")
+                    if (email.isNotBlank() && !emailOk) Text(appStrings.invalid_email)
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -262,13 +269,13 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = pass,
                 onValueChange = { pass = it },
-                label = { Text("Contraseña") },
+                label = { Text(appStrings.password_label) },
                 modifier = Modifier.fillMaxWidth().focusRequester(passFocus),
                 enabled = !isLoading,
                 visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     TextButton(onClick = { showPass = !showPass }) {
-                        Text(if (showPass) "Ocultar" else "Ver")
+                        Text(if (showPass) appStrings.hide_pass else appStrings.show_pass)
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -283,12 +290,12 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = pass2,
                 onValueChange = { pass2 = it },
-                label = { Text("Confirmar contraseña") },
+                label = { Text(appStrings.confirm_password_label) },
                 modifier = Modifier.fillMaxWidth().focusRequester(pass2Focus),
                 enabled = !isLoading,
                 isError = pass2.isNotBlank() && !passMatch,
                 supportingText = {
-                    if (pass2.isNotBlank() && !passMatch) Text("Las contraseñas no coinciden")
+                    if (pass2.isNotBlank() && !passMatch) Text(appStrings.pass_mismatch)
                 },
                 visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
@@ -306,8 +313,8 @@ fun RegisterScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Tipo de cuenta", style = MaterialTheme.typography.titleMedium)
-                    Text(if (isPrivate) "Privada" else "Pública")
+                    Text(appStrings.account_type, style = MaterialTheme.typography.titleMedium)
+                    Text(if (isPrivate) appStrings.private_label else appStrings.public_label)
                 }
                 Switch(checked = isPrivate, onCheckedChange = { isPrivate = it }, enabled = !isLoading)
             }
@@ -322,13 +329,13 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = canRegister && !isLoading
             ) {
-                Text("Crear cuenta")
+                Text(appStrings.register_title)
             }
 
             Spacer(Modifier.height(10.dp))
 
             OutlinedButton(onClick = onBackToLogin, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
-                Text("Volver a Login")
+                Text(appStrings.back_to_login)
             }
         }
     }
@@ -336,6 +343,7 @@ fun RegisterScreen(
 
 @Composable
 fun ForgotPasswordScreen(
+    appStrings: AppStrings,
     isLoading: Boolean = false,
     onBack: () -> Unit,
     onSendReset: (String) -> Unit
@@ -344,25 +352,25 @@ fun ForgotPasswordScreen(
     val emailOk = email.isNotBlank() && isValidEmail(email)
     val focusManager = LocalFocusManager.current
 
-    if (isLoading) LoadingOverlay()
+    if (isLoading) LoadingOverlay(appStrings)
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-            Text("Recuperar contraseña", style = MaterialTheme.typography.headlineMedium)
+            Text(appStrings.forgot_title, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(12.dp))
-            Text("Escribe tu correo y te enviaremos un enlace real.")
+            Text(appStrings.forgot_desc)
 
             Spacer(Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Correo") },
+                label = { Text(appStrings.email_label) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading,
                 isError = email.isNotBlank() && !emailOk,
                 supportingText = {
-                    if (email.isNotBlank() && !emailOk) Text("Correo no válido")
+                    if (email.isNotBlank() && !emailOk) Text(appStrings.invalid_email)
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -381,13 +389,13 @@ fun ForgotPasswordScreen(
                 enabled = emailOk && !isLoading,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Enviar enlace")
+                Text(appStrings.send_link)
             }
 
             Spacer(Modifier.height(10.dp))
 
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
-                Text("Volver")
+                Text(appStrings.back)
             }
         }
     }
@@ -408,7 +416,8 @@ fun HomeScreenWithDrawer(
     onGoProfile: () -> Unit,
     onGoSettings: () -> Unit,
     onGoInventory: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    appStrings: AppStrings
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -417,15 +426,15 @@ fun HomeScreenWithDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-                Text("QueueNote", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
+                Text(appStrings.app_name, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
                 HorizontalDivider()
                 NavigationDrawerItem(
-                    label = { Text("Menú principal") },
+                    label = { Text(appStrings.home_title) },
                     selected = true,
                     onClick = { scope.launch { drawerState.close() } }
                 )
                 NavigationDrawerItem(
-                    label = { Text("Inventario") },
+                    label = { Text(appStrings.inventory_title) },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
@@ -433,7 +442,7 @@ fun HomeScreenWithDrawer(
                     }
                 )
                 NavigationDrawerItem(
-                    label = { Text("Mi perfil") },
+                    label = { Text(appStrings.profile_title) },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
@@ -441,7 +450,7 @@ fun HomeScreenWithDrawer(
                     }
                 )
                 NavigationDrawerItem(
-                    label = { Text("Ajustes") },
+                    label = { Text(appStrings.settings_title) },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
@@ -450,7 +459,7 @@ fun HomeScreenWithDrawer(
                 )
                 Spacer(Modifier.weight(1f))
                 NavigationDrawerItem(
-                    label = { Text("Cerrar sesión") },
+                    label = { Text(appStrings.logout) },
                     selected = false,
                     onClick = {
                         scope.launch { drawerState.close() }
@@ -463,7 +472,7 @@ fun HomeScreenWithDrawer(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Menú principal") },
+                    title = { Text(appStrings.home_title) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "Menú")
@@ -487,7 +496,8 @@ fun HomeScreenWithDrawer(
                     onDelete = onDelete,
                     onEdit = onEdit,
                     onOpenDetail = onOpenDetail,
-                    onReopen = onReopen
+                    onReopen = onReopen,
+                    appStrings = appStrings
                 )
             }
         }
@@ -498,7 +508,8 @@ fun HomeScreenWithDrawer(
 @Composable
 fun FilterSection(
     selectedFilter: ProcessStatus?,
-    onFilterChange: (ProcessStatus?) -> Unit
+    onFilterChange: (ProcessStatus?) -> Unit,
+    appStrings: AppStrings
 ) {
     FlowRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -508,22 +519,22 @@ fun FilterSection(
         FilterChip(
             selected = selectedFilter == null,
             onClick = { onFilterChange(null) },
-            label = { Text("Todos") }
+            label = { Text(appStrings.filter_all) }
         )
         FilterChip(
             selected = ProcessStatus.PENDIENTE == selectedFilter,
             onClick = { onFilterChange(ProcessStatus.PENDIENTE) },
-            label = { Text("Pendiente") }
+            label = { Text(appStrings.filter_pending) }
         )
         FilterChip(
             selected = ProcessStatus.EN_ESPERA == selectedFilter,
             onClick = { onFilterChange(ProcessStatus.EN_ESPERA) },
-            label = { Text("En espera") }
+            label = { Text(appStrings.filter_waiting) }
         )
         FilterChip(
             selected = ProcessStatus.COMPLETADO == selectedFilter,
             onClick = { onFilterChange(ProcessStatus.COMPLETADO) },
-            label = { Text("Completado") }
+            label = { Text(appStrings.filter_completed) }
         )
     }
 }
@@ -538,11 +549,12 @@ fun HomeContent(
     onEdit: (String) -> Unit,
     onOpenDetail: (String) -> Unit,
     onFilterChange: (ProcessStatus?) -> Unit,
-    onReopen: (String) -> Unit
+    onReopen: (String) -> Unit,
+    appStrings: AppStrings
 ) {
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Spacer(Modifier.height(16.dp))
-        FilterSection(selectedFilter, onFilterChange)
+        FilterSection(selectedFilter, onFilterChange, appStrings)
         Spacer(Modifier.height(16.dp))
 
         if (processes.isEmpty()) {
@@ -550,9 +562,9 @@ fun HomeContent(
                 modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("No hay procesos", style = MaterialTheme.typography.titleMedium)
+                Text(appStrings.no_processes, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(6.dp))
-                Text("Toca el + para crear tu primer proceso.")
+                Text(appStrings.add_first_process)
             }
         } else {
             Column(
@@ -566,18 +578,19 @@ fun HomeContent(
                         onDelete = { onDelete(item.id) },
                         onEdit = { onEdit(item.id) },
                         onOpenDetail = { onOpenDetail(item.id) },
-                        onReopen = { onReopen(item.id) }
+                        onReopen = { onReopen(item.id) },
+                        appStrings = appStrings
                     )
                 }
-                Spacer(Modifier.height(80.dp)) // Espacio para el FAB
+                Spacer(Modifier.height(80.dp))
             }
         }
     }
 }
 
 @Composable
-fun StatusBadge(status: ProcessStatus) {
-    val label = getStatusDisplayName(status)
+fun StatusBadge(status: ProcessStatus, appStrings: AppStrings) {
+    val label = getStatusDisplayName(status, appStrings)
     AssistChip(
         onClick = {},
         label = { Text(label) }
@@ -591,7 +604,8 @@ fun ProcessCard(
     onDelete: () -> Unit,
     onEdit: () -> Unit,
     onOpenDetail: () -> Unit,
-    onReopen: () -> Unit
+    onReopen: () -> Unit,
+    appStrings: AppStrings
 ) {
     val locked = item.status == ProcessStatus.COMPLETADO
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -606,7 +620,7 @@ fun ProcessCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(item.title, style = MaterialTheme.typography.titleMedium)
-                StatusBadge(item.status)
+                StatusBadge(item.status, appStrings)
             }
 
             if (item.description.isNotBlank()) {
@@ -620,7 +634,7 @@ fun ProcessCard(
                     Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Vence: ${formatLongDate(item.dueDate)}",
+                        text = "${appStrings.due_date_label} ${formatLongDate(item.dueDate, appStrings)}",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -632,8 +646,11 @@ fun ProcessCard(
             if (allSubtasks.isNotEmpty()) {
                 val done = allSubtasks.count { it.done }
                 val total = allSubtasks.size
+                val percentage = if (total == 0) 0 else (done * 100) / total
                 Spacer(Modifier.height(6.dp))
-                Text("Progreso: $done/$total", style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${appStrings.progress_label} $done/$total ($percentage%)", style = MaterialTheme.typography.bodySmall)
+                }
                 LinearProgressIndicator(
                     progress = { if (total == 0) 0f else done.toFloat() / total.toFloat() },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
@@ -656,7 +673,7 @@ fun ProcessCard(
                     }
                 } else {
                     OutlinedButton(onClick = onReopen) {
-                        Text("Reabrir")
+                        Text(appStrings.reopen_btn)
                     }
                 }
 
@@ -670,16 +687,16 @@ fun ProcessCard(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Eliminar proceso") },
-            text = { Text("¿Seguro que deseas eliminar el proceso \"${item.title}\"? Se perderán todas sus subtareas y grupos.") },
+            title = { Text(appStrings.delete) },
+            text = { Text(appStrings.delete_process_confirm) },
             confirmButton = {
                 Button(onClick = {
                     onDelete()
                     showDeleteConfirm = false
-                }) { Text("Eliminar") }
+                }) { Text(appStrings.delete) }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showDeleteConfirm = false }) { Text("Cancelar") }
+                OutlinedButton(onClick = { showDeleteConfirm = false }) { Text(appStrings.cancel) }
             }
         )
     }
@@ -690,7 +707,8 @@ fun ProcessCard(
 fun TaskDetailScreen(
     process: ProcessItem,
     onBack: () -> Unit,
-    onUpdateProcess: (ProcessItem) -> Unit
+    onUpdateProcess: (ProcessItem) -> Unit,
+    appStrings: AppStrings
 ) {
     var current by remember { mutableStateOf(process) }
     val locked = current.status == ProcessStatus.COMPLETADO
@@ -699,6 +717,7 @@ fun TaskDetailScreen(
     val total = allSubtasks.size
     val done = allSubtasks.count { it.done }
     val progress = if (total == 0) 0f else done.toFloat() / total.toFloat()
+    val percentage = (progress * 100).toInt()
 
     fun applyAutoStatus(updated: ProcessItem): ProcessItem {
         val subtasks = updated.groups.flatMap { it.subtasks }
@@ -713,7 +732,7 @@ fun TaskDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detalle del proceso") },
+                title = { Text(appStrings.detail_title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -741,13 +760,13 @@ fun TaskDetailScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AssistChip(onClick = {}, label = { Text("Estado: ${getStatusDisplayName(current.status)}") })
-                Text(if (total == 0) "0/0" else "$done/$total")
+                AssistChip(onClick = {}, label = { Text("${appStrings.status_label}: ${getStatusDisplayName(current.status, appStrings)}") })
+                Text("$done/$total ($percentage%)")
             }
 
             if (current.dueDate != null) {
                 Text(
-                    text = "Fecha límite: ${formatLongDate(current.dueDate)}",
+                    text = "${appStrings.due_date_label} ${formatLongDate(current.dueDate, appStrings)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -765,7 +784,7 @@ fun TaskDetailScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Reabrir tarea")
+                    Text(appStrings.reopen_btn)
                 }
             }
 
@@ -777,7 +796,7 @@ fun TaskDetailScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("➕ Agregar subtarea")
+                    Text("➕ ${appStrings.add_subtask}")
                 }
             }
 
@@ -808,7 +827,8 @@ fun TaskDetailScreen(
                         val updated = applyAutoStatus(current.copy(groups = newGroups))
                         current = updated
                         onUpdateProcess(updated)
-                    }
+                    },
+                    appStrings = appStrings
                 )
             }
         }
@@ -816,6 +836,7 @@ fun TaskDetailScreen(
 
     if (showAddGroup) {
         AddGroupDialog(
+            appStrings = appStrings,
             onDismiss = { showAddGroup = false },
             onAdd = { name ->
                 val updated = current.copy(groups = current.groups + TaskGroup(name = name))
@@ -829,6 +850,7 @@ fun TaskDetailScreen(
     val gid = showAddSubtaskForGroupId
     if (gid != null) {
         AddSubtaskDialog(
+            appStrings = appStrings,
             onDismiss = { showAddSubtaskForGroupId = null },
             onAdd = { text ->
                 val newGroups = current.groups.map { g ->
@@ -851,7 +873,8 @@ fun GroupCard(
     onAddSubtask: () -> Unit,
     onToggleSubtask: (String) -> Unit,
     onDeleteSubtask: (String) -> Unit,
-    onToggleStatus: () -> Unit = {}
+    onToggleStatus: () -> Unit = {},
+    appStrings: AppStrings
 ) {
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
 
@@ -864,12 +887,12 @@ fun GroupCard(
             ) {
                 Text(group.name, style = MaterialTheme.typography.titleMedium)
                 if (!locked) {
-                    OutlinedButton(onClick = onAddSubtask) { Text("+ Subtarea") }
+                    OutlinedButton(onClick = onAddSubtask) { Text("+ ${appStrings.add_subtask}") }
                 }
             }
 
             if (group.subtasks.isEmpty()) {
-                Text("Sin subtareas todavía.")
+                Text(appStrings.no_subtasks)
             } else {
                 group.subtasks.forEach { st ->
                     Row(
@@ -905,58 +928,58 @@ fun GroupCard(
     if (pendingDeleteId != null) {
         AlertDialog(
             onDismissRequest = { pendingDeleteId = null },
-            title = { Text("Eliminar subtarea") },
-            text = { Text("¿Seguro que deseas eliminar esta subtarea?") },
+            title = { Text(appStrings.delete) },
+            text = { Text(appStrings.delete_subtask_confirm) },
             confirmButton = {
                 Button(onClick = {
                     onDeleteSubtask(pendingDeleteId!!)
                     pendingDeleteId = null
-                }) { Text("Eliminar") }
+                }) { Text(appStrings.delete) }
             },
             dismissButton = {
-                OutlinedButton(onClick = { pendingDeleteId = null }) { Text("Cancelar") }
+                OutlinedButton(onClick = { pendingDeleteId = null }) { Text(appStrings.cancel) }
             }
         )
     }
 }
 
 @Composable
-fun AddGroupDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+fun AddGroupDialog(appStrings: AppStrings, onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Agregar grupo") },
+        title = { Text(appStrings.add_group) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nombre del grupo") },
+                label = { Text(appStrings.group_name_label) },
                 singleLine = true
             )
         },
         confirmButton = {
             Button(
-                onClick = { onAdd(name.trim().ifBlank { "Grupo" }) },
+                onClick = { onAdd(name.trim().ifBlank { "Group" }) },
                 enabled = name.trim().isNotBlank()
-            ) { Text("Agregar") }
+            ) { Text(appStrings.add_btn) }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) { Text("Cancelar") }
+            OutlinedButton(onClick = onDismiss) { Text(appStrings.cancel) }
         }
     )
 }
 
 @Composable
-fun AddSubtaskDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+fun AddSubtaskDialog(appStrings: AppStrings, onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Agregar subtarea") },
+        title = { Text(appStrings.add_subtask) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text("Texto de la subtarea") },
+                label = { Text(appStrings.subtask_text_label) },
                 singleLine = true
             )
         },
@@ -964,10 +987,10 @@ fun AddSubtaskDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
             Button(
                 onClick = { onAdd(text.trim()) },
                 enabled = text.trim().isNotBlank()
-            ) { Text("Agregar") }
+            ) { Text(appStrings.add_btn) }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) { Text("Cancelar") }
+            OutlinedButton(onClick = onDismiss) { Text(appStrings.cancel) }
         }
     )
 }
@@ -982,7 +1005,8 @@ fun ProfileScreen(
     onPhotoSelected: (Uri) -> Unit,
     onLogout: () -> Unit,
     onChangePassword: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    appStrings: AppStrings
 ) {
     var name by remember { mutableStateOf(initialName) }
     val githubUser = "GitHub no conectado"
@@ -993,11 +1017,11 @@ fun ProfileScreen(
         uri?.let { onPhotoSelected(it) }
     }
 
-    if (isLoading) LoadingOverlay()
+    if (isLoading) LoadingOverlay(appStrings)
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
-            Text("Mi perfil", style = MaterialTheme.typography.headlineMedium)
+            Text(appStrings.profile_title, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(16.dp))
 
             Box(
@@ -1037,7 +1061,7 @@ fun ProfileScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nombre") },
+                label = { Text(appStrings.name_label) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading,
                 trailingIcon = {
@@ -1054,7 +1078,7 @@ fun ProfileScreen(
             OutlinedTextField(
                 value = email,
                 onValueChange = {},
-                label = { Text("Correo") },
+                label = { Text(appStrings.email_label) },
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = true
             )
@@ -1072,7 +1096,7 @@ fun ProfileScreen(
             Spacer(Modifier.height(20.dp))
 
             Button(onClick = onChangePassword, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
-                Text("Cambiar contraseña")
+                Text(appStrings.change_pass_title)
             }
 
             Spacer(Modifier.height(10.dp))
@@ -1083,13 +1107,13 @@ fun ProfileScreen(
                 enabled = !isLoading,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
-                Text("Cerrar sesión")
+                Text(appStrings.logout)
             }
 
             Spacer(Modifier.height(10.dp))
 
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
-                Text("Volver")
+                Text(appStrings.back)
             }
         }
     }
@@ -1099,31 +1123,56 @@ fun ProfileScreen(
 fun ChangePasswordScreen(
     isLoading: Boolean = false,
     onBack: () -> Unit,
-    onUpdatePassword: (String) -> Unit
+    onUpdatePassword: (String, String) -> Unit,
+    appStrings: AppStrings
 ) {
+    var currentPass by remember { mutableStateOf("") }
     var newPass by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var show by remember { mutableStateOf(false) }
 
+    val currentOk = currentPass.length >= 6
     val newOk = newPass.length >= 6
     val matchOk = confirm.isNotBlank() && confirm == newPass
-    val canSave = newOk && matchOk
+    val canSave = currentOk && newOk && matchOk
 
     val focusManager = LocalFocusManager.current
+    val newPassFocus = remember { FocusRequester() }
     val confirmFocus = remember { FocusRequester() }
 
-    if (isLoading) LoadingOverlay()
+    if (isLoading) LoadingOverlay(appStrings)
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
-            Text("Cambiar contraseña", style = MaterialTheme.typography.headlineMedium)
+            Text(appStrings.change_pass_title, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = currentPass,
+                onValueChange = { currentPass = it },
+                label = { Text(appStrings.current_pass_label) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
+                visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(onNext = { newPassFocus.requestFocus() }),
+                trailingIcon = {
+                    TextButton(onClick = { show = !show }) { 
+                        Text(if (show) appStrings.hide_pass else appStrings.show_pass) 
+                    }
+                }
+            )
+
+            Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = newPass,
                 onValueChange = { newPass = it },
-                label = { Text("Nueva contraseña") },
-                modifier = Modifier.fillMaxWidth(),
+                label = { Text(appStrings.new_pass_label) },
+                modifier = Modifier.fillMaxWidth().focusRequester(newPassFocus),
                 enabled = !isLoading,
                 visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
@@ -1132,7 +1181,9 @@ fun ChangePasswordScreen(
                 ),
                 keyboardActions = KeyboardActions(onNext = { confirmFocus.requestFocus() }),
                 trailingIcon = {
-                    TextButton(onClick = { show = !show }) { Text(if (show) "Ocultar" else "Ver") }
+                    TextButton(onClick = { show = !show }) { 
+                        Text(if (show) appStrings.hide_pass else appStrings.show_pass) 
+                    }
                 }
             )
 
@@ -1141,12 +1192,12 @@ fun ChangePasswordScreen(
             OutlinedTextField(
                 value = confirm,
                 onValueChange = { confirm = it },
-                label = { Text("Confirmar nueva contraseña") },
+                label = { Text(appStrings.confirm_pass_label) },
                 modifier = Modifier.fillMaxWidth().focusRequester(confirmFocus),
                 enabled = !isLoading,
                 isError = confirm.isNotBlank() && !matchOk,
                 supportingText = {
-                    if (confirm.isNotBlank() && !matchOk) Text("No coincide")
+                    if (confirm.isNotBlank() && !matchOk) Text(appStrings.pass_mismatch)
                 },
                 visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
@@ -1155,7 +1206,9 @@ fun ChangePasswordScreen(
                 ),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 trailingIcon = {
-                    TextButton(onClick = { show = !show }) { Text(if (show) "Ocultar" else "Ver") }
+                    TextButton(onClick = { show = !show }) { 
+                        Text(if (show) appStrings.hide_pass else appStrings.show_pass) 
+                    }
                 }
             )
 
@@ -1164,16 +1217,16 @@ fun ChangePasswordScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    onUpdatePassword(newPass)
+                    onUpdatePassword(currentPass, newPass)
                 },
                 enabled = canSave && !isLoading,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Actualizar contraseña") }
+            ) { Text(appStrings.update_pass_btn) }
 
             Spacer(Modifier.height(10.dp))
 
             OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
-                Text("Volver")
+                Text(appStrings.back)
             }
         }
     }
@@ -1185,38 +1238,37 @@ fun SettingsScreen(
     onSetThemeMode: (String) -> Unit,
     language: String,
     onSetLanguage: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    appStrings: AppStrings
 ) {
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState())) {
-            Text("Ajustes", style = MaterialTheme.typography.headlineMedium)
+            Text(appStrings.settings_title, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(24.dp))
 
-            Text("Apariencia", style = MaterialTheme.typography.titleMedium)
+            Text(appStrings.appearance, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
 
-            // Selector de Tema
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ThemeOption("Automático (Sistema)", "auto", themeMode, onSetThemeMode)
-                ThemeOption("Modo Claro", "light", themeMode, onSetThemeMode)
-                ThemeOption("Modo Oscuro", "dark", themeMode, onSetThemeMode)
+                ThemeOption(appStrings.auto_system, "auto", themeMode, onSetThemeMode)
+                ThemeOption(appStrings.light_mode, "light", themeMode, onSetThemeMode)
+                ThemeOption(appStrings.dark_mode, "dark", themeMode, onSetThemeMode)
             }
 
             Spacer(Modifier.height(32.dp))
 
-            Text("Idioma", style = MaterialTheme.typography.titleMedium)
+            Text(appStrings.language_label, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
 
-            // Selector de Idioma
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LanguageOption("Automático (Sistema)", "auto", language, onSetLanguage)
-                LanguageOption("Español", "es", language, onSetLanguage)
-                LanguageOption("Inglés", "en", language, onSetLanguage)
+                LanguageOption(appStrings.auto_system, "auto", language, onSetLanguage)
+                LanguageOption(appStrings.spanish, "es", language, onSetLanguage)
+                LanguageOption(appStrings.english, "en", language, onSetLanguage)
             }
 
             Spacer(Modifier.height(48.dp))
 
-            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Volver") }
+            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(appStrings.back) }
         }
     }
 }
@@ -1256,7 +1308,8 @@ fun LanguageOption(text: String, lang: String, currentLang: String, onSelect: (S
 fun CreateEditProcessScreen(
     existing: ProcessItem?,
     onSave: (ProcessItem) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    appStrings: AppStrings
 ) {
     var title by remember { mutableStateOf(existing?.title ?: "") }
     var description by remember { mutableStateOf(existing?.description ?: "") }
@@ -1276,7 +1329,7 @@ fun CreateEditProcessScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (existing == null) "Crear proceso" else "Editar proceso") },
+                title = { Text(if (existing == null) appStrings.create_process_title else appStrings.edit_process_title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -1291,7 +1344,7 @@ fun CreateEditProcessScreen(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Título *") },
+                label = { Text(appStrings.title_label) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Next
@@ -1306,7 +1359,7 @@ fun CreateEditProcessScreen(
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Descripción (opcional)") },
+                label = { Text(appStrings.description_label) },
                 modifier = Modifier.fillMaxWidth().focusRequester(descFocusRequester),
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Done
@@ -1318,7 +1371,7 @@ fun CreateEditProcessScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            Text("Fecha límite", style = MaterialTheme.typography.titleMedium)
+            Text(appStrings.due_date_selection, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
 
             OutlinedCard(
@@ -1333,18 +1386,18 @@ fun CreateEditProcessScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DateRange, contentDescription = null)
                         Spacer(Modifier.width(12.dp))
-                        Text(formatLongDate(dueDate))
+                        Text(formatLongDate(dueDate, appStrings))
                     }
                     if (dueDate != null) {
                         IconButton(onClick = { dueDate = null }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Quitar fecha")
+                            Icon(Icons.Default.Clear, contentDescription = appStrings.clear_date)
                         }
                     }
                 }
             }
 
             Spacer(Modifier.height(16.dp))
-            Text("Estado", style = MaterialTheme.typography.titleMedium)
+            Text(appStrings.status_label, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
 
             Row(
@@ -1354,17 +1407,17 @@ fun CreateEditProcessScreen(
                 FilterChip(
                     selected = status == ProcessStatus.PENDIENTE,
                     onClick = { status = ProcessStatus.PENDIENTE },
-                    label = { Text("Pendiente") }
+                    label = { Text(appStrings.filter_pending) }
                 )
                 FilterChip(
                     selected = status == ProcessStatus.EN_ESPERA,
                     onClick = { status = ProcessStatus.EN_ESPERA },
-                    label = { Text("En espera") }
+                    label = { Text(appStrings.filter_waiting) }
                 )
                 FilterChip(
                     selected = status == ProcessStatus.COMPLETADO,
                     onClick = { status = ProcessStatus.COMPLETADO },
-                    label = { Text("Completado") }
+                    label = { Text(appStrings.filter_completed) }
                 )
             }
 
@@ -1385,7 +1438,7 @@ fun CreateEditProcessScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = canSave
             ) {
-                Text("Guardar")
+                Text(appStrings.save)
             }
 
             Spacer(Modifier.height(10.dp))
@@ -1394,7 +1447,7 @@ fun CreateEditProcessScreen(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Cancelar")
+                Text(appStrings.cancel)
             }
         }
     }
@@ -1406,10 +1459,10 @@ fun CreateEditProcessScreen(
                 TextButton(onClick = {
                     dueDate = datePickerState.selectedDateMillis
                     showDatePicker = false
-                }) { Text("Seleccionar") }
+                }) { Text(appStrings.select_btn) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
+                TextButton(onClick = { showDatePicker = false }) { Text(appStrings.cancel) }
             }
         ) {
             DatePicker(state = datePickerState)

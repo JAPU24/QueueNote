@@ -2,6 +2,7 @@ package com.adrian.queuenote
 
 import android.app.Activity
 import android.net.Uri
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.OAuthProvider
@@ -66,6 +67,24 @@ class AuthRepository {
             val provider = OAuthProvider.newBuilder("github.com")
             val result = auth.startActivityForSignInWithProvider(activity, provider.build()).await()
             Result.success(result.user)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // NUEVO: Re-autenticar y cambiar contraseña
+    suspend fun changePassword(currentPass: String, newPass: String): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(Exception("Usuario no autenticado"))
+            val credential = EmailAuthProvider.getCredential(user.email!!, currentPass)
+            
+            // 1. Re-autenticar
+            user.reauthenticate(credential).await()
+            
+            // 2. Cambiar contraseña
+            user.updatePassword(newPass).await()
+            
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -24,19 +24,31 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             val store = SettingsStore(context)
             val scope = rememberCoroutineScope()
+            val transRepo = remember { TranslationRepository() }
 
             val themeMode by store.themeModeFlow.collectAsState(initial = "auto")
             val language by store.languageFlow.collectAsState(initial = "auto")
+            
+            // Estado para los strings dinámicos de la API
+            var appStrings by remember { mutableStateOf(AppStrings()) }
 
-            // Lógica de Idioma
+            // Lógica de Idioma + API
             LaunchedEffect(language) {
-                if (language != "auto") {
-                    val locale = Locale(language)
-                    Locale.setDefault(locale)
-                    val resources = context.resources
-                    val configuration = resources.configuration
-                    configuration.setLocale(locale)
-                    resources.updateConfiguration(configuration, resources.displayMetrics)
+                val targetLang = if (language == "auto") {
+                    Locale.getDefault().language
+                } else language
+
+                // 1. Cambiamos el Locale físico del sistema
+                val locale = Locale(targetLang)
+                Locale.setDefault(locale)
+                val resources = context.resources
+                val configuration = resources.configuration
+                configuration.setLocale(locale)
+                resources.updateConfiguration(configuration, resources.displayMetrics)
+
+                // 2. LLAMADA A LA API EXTRA DE IDIOMAS
+                scope.launch {
+                    appStrings = transRepo.fetchStrings(targetLang)
                 }
             }
 
@@ -55,7 +67,8 @@ class MainActivity : ComponentActivity() {
                     language = language,
                     onSetLanguage = { lang ->
                         scope.launch { store.setLanguage(lang) }
-                    }
+                    },
+                    appStrings = appStrings // Pasamos los strings descargados
                 )
             }
         }
