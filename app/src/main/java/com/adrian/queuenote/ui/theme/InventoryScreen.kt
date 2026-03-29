@@ -12,11 +12,14 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.provider.Settings
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -125,77 +128,95 @@ fun InventoryScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
-                Text(appStrings.app_name, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
-                HorizontalDivider()
-                NavigationDrawerItem(label = { Text(appStrings.home_title) }, selected = false, onClick = { scope.launch { drawerState.close() }; onGoHome() })
-                NavigationDrawerItem(label = { Text(appStrings.inventory_title) }, selected = true, onClick = { scope.launch { drawerState.close() } })
-                NavigationDrawerItem(label = { Text(appStrings.profile_title) }, selected = false, onClick = { scope.launch { drawerState.close() }; onGoProfile() })
-                NavigationDrawerItem(label = { Text(appStrings.settings_title) }, selected = false, onClick = { scope.launch { drawerState.close() }; onGoSettings() })
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                drawerTonalElevation = 0.dp
+            ) {
+                Box(modifier = Modifier.padding(24.dp)) {
+                    Text(appStrings.app_name, style = MaterialTheme.typography.displayLarge.copy(fontSize = 28.sp))
+                }
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(16.dp))
+                NavigationDrawerItem(label = { Text(appStrings.home_title) }, selected = false, onClick = { scope.launch { drawerState.close() }; onGoHome() }, modifier = Modifier.padding(horizontal = 12.dp), shape = MaterialTheme.shapes.medium)
+                NavigationDrawerItem(label = { Text(appStrings.inventory_title) }, selected = true, onClick = { scope.launch { drawerState.close() } }, modifier = Modifier.padding(horizontal = 12.dp), shape = MaterialTheme.shapes.medium)
+                NavigationDrawerItem(label = { Text(appStrings.profile_title) }, selected = false, onClick = { scope.launch { drawerState.close() }; onGoProfile() }, modifier = Modifier.padding(horizontal = 12.dp), shape = MaterialTheme.shapes.medium)
+                NavigationDrawerItem(label = { Text(appStrings.settings_title) }, selected = false, onClick = { scope.launch { drawerState.close() }; onGoSettings() }, modifier = Modifier.padding(horizontal = 12.dp), shape = MaterialTheme.shapes.medium)
                 Spacer(Modifier.weight(1f))
-                NavigationDrawerItem(label = { Text(appStrings.logout) }, selected = false, onClick = { scope.launch { drawerState.close() }; onLogout() })
+                NavigationDrawerItem(label = { Text(appStrings.logout, color = MaterialTheme.colorScheme.error) }, selected = false, onClick = { scope.launch { drawerState.close() }; onLogout() }, modifier = Modifier.padding(horizontal = 12.dp, vertical = 24.dp), shape = MaterialTheme.shapes.medium)
             }
         }
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
+                CenterAlignedTopAppBar(
                     title = { Text(appStrings.inventory_title) },
-                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, contentDescription = "Menú") } },
+                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, contentDescription = null) } },
                     actions = {
                         if (articulos.isNotEmpty()) {
                             IconButton(onClick = { 
                                 val file = PdfHelper.generateInventoryPdf(context, articulos)
                                 if (file != null) PdfHelper.exportPdfToDownloads(context, file)
-                            }) { Icon(Icons.Default.FileDownload, contentDescription = "Exportar") }
+                            }) { Icon(Icons.Default.FileDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
 
-                            IconButton(onClick = {
-                                val file = PdfHelper.generateInventoryPdf(context, articulos)
-                                if (file != null) PdfHelper.printPdf(context, file)
-                            }) { Icon(Icons.Default.Print, contentDescription = "Imprimir") }
-
-                            IconButton(onClick = {
+                            IconButton(onClick = { 
                                 val file = PdfHelper.generateInventoryPdf(context, articulos)
                                 if (file != null) PdfHelper.sharePdf(context, file)
-                            }) { Icon(Icons.Default.Share, contentDescription = "Compartir") }
+                            }) { Icon(Icons.Default.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
                 )
-            },
-            bottomBar = { if (articulos.isNotEmpty()) InventoryDashboard(articulos, appStrings) }
+            }
         ) { padding ->
-            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-                Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    InteractiveStatusCard(Icons.Default.Wifi, "WIFI", isWifiOn) {
+            Column(modifier = Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PremiumStatusCard(Icons.Default.Wifi, "WIFI", isWifiOn, Modifier.weight(1f)) {
                         context.startActivity(Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY))
                     }
-                    InteractiveStatusCard(Icons.Default.Bluetooth, "BT", isBluetoothOn) {
+                    PremiumStatusCard(Icons.Default.Bluetooth, "BT", isBluetoothOn, Modifier.weight(1f)) {
                         context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
                     }
-                    InteractiveStatusCard(Icons.Default.LocationOn, "LOC", isLocationOn) {
+                    PremiumStatusCard(Icons.Default.LocationOn, "LOC", isLocationOn, Modifier.weight(1f)) {
                         context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                     }
                 }
                 
-                OutlinedTextField(
+                Spacer(Modifier.height(16.dp))
+                
+                if (articulos.isNotEmpty()) {
+                    InventoryDashboardPremium(articulos, appStrings)
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                PremiumTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    placeholder = { Text(appStrings.search_placeholder) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = { IconButton(onClick = { performSearch() }) { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = MaterialTheme.colorScheme.primary) } },
-                    singleLine = true,
+                    label = "",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    trailingIcon = { 
+                        IconButton(onClick = { performSearch() }) { 
+                            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) 
+                        } 
+                    },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { performSearch() })
                 )
                 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(16.dp))
                 
                 if (isLoading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 } else {
-                    LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(articulos) { ArticuloCard(it, appStrings) }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(articulos) { PremiumArticuloCard(it, appStrings) }
+                        item { Spacer(Modifier.height(20.dp)) }
                     }
                 }
             }
@@ -204,42 +225,62 @@ fun InventoryScreen(
 }
 
 @Composable
-fun InteractiveStatusCard(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, isOn: Boolean, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier.width(90.dp).clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = if (isOn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+fun PremiumStatusCard(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, isOn: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(64.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = if (isOn) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, if (isOn) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(modifier = Modifier.padding(8.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, label, tint = if (isOn) MaterialTheme.colorScheme.primary else Color.Gray, modifier = Modifier.size(24.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-            Text(if (isOn) "ON" else "OFF", style = MaterialTheme.typography.labelSmall, color = if (isOn) MaterialTheme.colorScheme.primary else Color.Gray)
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, null, tint = if (isOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (isOn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
-fun ArticuloCard(articulo: Articulo, appStrings: AppStrings) {
-    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(modifier = Modifier.size(80.dp), shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceVariant) {
+fun PremiumArticuloCard(articulo: Articulo, appStrings: AppStrings) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 2.dp
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                modifier = Modifier.size(70.dp),
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
                 if (articulo.imagenUrl != null) {
-                    AsyncImage(model = articulo.imagenUrl, contentDescription = articulo.nombre, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    AsyncImage(model = articulo.imagenUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Icons.Default.Inventory, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { 
+                        Icon(Icons.Default.Inventory2, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), modifier = Modifier.size(32.dp)) 
+                    }
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(articulo.nombre ?: "Sin nombre", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(articulo.nombre ?: "Unnamed Item", style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp), maxLines = 1)
+                Spacer(Modifier.height(4.dp))
+                
+                // RESTORED: Article details from API (Professor's logic)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column {
-                        Text("${appStrings.cant_label}: ${articulo.unidadesInt}")
-                        Text("${appStrings.cost}: $${String.format("%.2f", articulo.costoDouble)}", style = MaterialTheme.typography.bodySmall)
+                        Text("${appStrings.cant_label}: ${articulo.unidadesInt}", style = MaterialTheme.typography.bodyLarge)
+                        Text("${appStrings.cost}: $${String.format("%.2f", articulo.costoDouble)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("${appStrings.price}: $${String.format("%.2f", articulo.precioDouble)}", color = MaterialTheme.colorScheme.primary)
-                        Text("${appStrings.profit}: $${String.format("%.2f", articulo.beneficio)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = if(articulo.beneficio >= 0) Color(0xFF4CAF50) else Color.Red)
+                        Text("${appStrings.price}: $${String.format("%.2f", articulo.precioDouble)}", style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp, color = MaterialTheme.colorScheme.primary))
+                        Text("${appStrings.profit}: $${String.format("%.2f", articulo.beneficio)}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = if(articulo.beneficio >= 0) SuccessGreen else ErrorRed)
                     }
                 }
             }
@@ -248,46 +289,45 @@ fun ArticuloCard(articulo: Articulo, appStrings: AppStrings) {
 }
 
 @Composable
-fun InventoryDashboard(articulos: List<Articulo>, appStrings: AppStrings) {
-    val totalCant = articulos.size
+fun InventoryDashboardPremium(articulos: List<Articulo>, appStrings: AppStrings) {
     val totalInv = articulos.sumOf { it.unidadesInt }
     val totalPrecio = articulos.sumOf { it.precioDouble * (if(it.unidadesInt > 0) it.unidadesInt else 1) }
     val totalCosto = articulos.sumOf { it.costoDouble * (if(it.unidadesInt > 0) it.unidadesInt else 1) }
     val totalBen = totalPrecio - totalCosto
 
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+        shadowElevation = 4.dp
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text(appStrings.dashboard_title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                DashboardItem(appStrings.items_label, totalCant.toString(), Modifier.weight(1f))
-                DashboardItem("${appStrings.stock} Total", totalInv.toString(), Modifier.weight(1f))
+                Column {
+                    Text(appStrings.total_stock, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(totalInv.toString(), style = MaterialTheme.typography.displayLarge.copy(fontSize = 28.sp))
+                }
+                Column {
+                    Text(appStrings.profit, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("$${String.format("%.0f", totalBen)}", style = MaterialTheme.typography.displayLarge.copy(fontSize = 28.sp, color = if(totalBen >= 0) SuccessGreen else ErrorRed))
+                }
             }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f))
-
+            Spacer(Modifier.height(20.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(20.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                DashboardItem(appStrings.sell_value, "$${String.format("%.0f", totalPrecio)}", Modifier.weight(1f))
-                DashboardItem(appStrings.investment, "$${String.format("%.0f", totalCosto)}", Modifier.weight(1f))
-                DashboardItem(appStrings.profit, "$${String.format("%.0f", totalBen)}", Modifier.weight(1f), isHighlight = true)
+                Column {
+                    Text(appStrings.investment, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("$${String.format("%.0f", totalCosto)}", style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp))
+                }
+                Column {
+                    Text(appStrings.sell_value, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("$${String.format("%.0f", totalPrecio)}", style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp))
+                }
             }
         }
-    }
-}
-
-@Composable
-fun DashboardItem(label: String, value: String, modifier: Modifier = Modifier, isHighlight: Boolean = false) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
-        Text(
-            value, 
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = if (isHighlight) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSecondaryContainer,
-            textAlign = TextAlign.Center
-        )
     }
 }
